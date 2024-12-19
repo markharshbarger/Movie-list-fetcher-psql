@@ -1,4 +1,5 @@
 import os
+import time
 from movie_manager import Movie
 from movie_manager import MovieManager
 from dotenv import load_dotenv
@@ -19,6 +20,7 @@ if movie_paths:
     print("movie_paths: ", movie_paths)
 
 def update_movie_params(movie: Movie, record, cur, conn):
+    time.sleep(0.1)
     resolution_width, resolution_height = movie.get_resolution()
     if resolution_width != record[2] or resolution_height != record[3]:
         print("Resolution mismatch")
@@ -38,6 +40,7 @@ def update_movie_params(movie: Movie, record, cur, conn):
             raise(e)
 
 def add_movie(movie: Movie, cur, conn):
+    time.sleep(0.1)
     print(f"Movie {movie.get_name()} not found in the database")
     try:
         query = sql.SQL("INSERT INTO {field} (movie_name, release_year, resolution_width, resolution_height, external_subtitles) VALUES (%s, %s, %s, %s, %s)").format(field = sql.Identifier(db_name))
@@ -73,8 +76,9 @@ def sync():
     for record in database_records:
         movie_exists = False
         for movie in current_movies:
-            if movie.get_name() == record[0] and movie.get_year() == str(record[1]):
+            if movie.get_name() == record[0] and str(movie.get_year()) == str(record[1]):
                 movie_exists = True
+                print("Match found")
                 # check for any changes in resolution or external subtitles for movie
                 update_movie_params(movie, record, cur, conn)
         if not movie_exists:
