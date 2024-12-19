@@ -76,5 +76,4 @@ def sync():
     conn.close()
 
 if __name__ == "__main__":
-    print("hello")
     sync()
