@@ -18,11 +18,36 @@ if movie_paths:
     movie_paths: list = movie_paths.split(',')
     print("movie_paths: ", movie_paths)
 
+def update_movie_params(movie: Movie, record, cur, conn):
+    resolution_width, resolution_height = movie.get_resolution()
+    if resolution_width != record[2] or resolution_height != record[3]:
+        print("Resolution mismatch")
+        try:
+            query = sql.SQL("UPDATE {field} SET resolution_width = %s, resolution_height = %s WHERE movie_name = %s AND release_year = %s").format(field = sql.Identifier(db_name))
+            cur.execute(query, (int(movie.get_resolution()[0]), int(movie.get_resolution()[1]), movie.get_name(), int(movie.get_year())))
+            conn.commit()
+        except psycopg2.Error as e:
+            raise(e)
+    elif movie.external_subtitles != record[4]:
+        print("External subtitles mismatch")
+        try:
+            query = sql.SQL("UPDATE {field} SET external_subtitles = %s WHERE movie_name = %s AND release_year = %s").format(field = sql.Identifier(db_name))
+            cur.execute(query, (movie.external_subtitles, movie.get_name(), int(movie.get_year())))
+            conn.commit()
+        except psycopg2.Error as e:
+            raise(e)
+
+def add_movie(movie: Movie, cur, conn):
+    print(f"Movie {movie.get_name()} not found in the database")
+    try:
+        query = sql.SQL("INSERT INTO {field} (movie_name, release_year, resolution_width, resolution_height, external_subtitles) VALUES (%s, %s, %s, %s, %s)").format(field = sql.Identifier(db_name))
+        cur.execute(query, (movie.get_name(), int(movie.get_year()), int(movie.get_resolution()[0]), int(movie.get_resolution()[1]), movie.external_subtitles))
+        conn.commit()
+    except psycopg2.Error as e:
+        raise(e)
 
 def sync():
     print("Syncing...")
-    print("DB_NAME: ", db_name)
-    print("DB_USER: ", db_user)
     conn = psycopg2.connect(
         dbname=db_name,
         user=db_user,
@@ -31,30 +56,24 @@ def sync():
         port=db_port
     )
     cur = conn.cursor()
-    cur.execute("SELECT movie_name, release_year, resolution_width, resolution_height, external_subtitles FROM movies")
+    cur.execute("SELECT movie_name, release_year, resolution_width, resolution_height, external_subtitles FROM movies;")
     database_records: list = cur.fetchall()
-    print("records: ", database_records)
     movie_manager = MovieManager(movie_paths)
     movie_manager.process_files()
     current_movies: list = movie_manager.get_movie_list()
 
     for record in database_records:
+        movie_exists = False
         for movie in current_movies:
-            movie_name = movie.get_name()
-            movie_year = movie.get_year()
-            if movie_name == record[0] and movie_year == str(record[1]):
-                print("Match found for movie: ", movie_name)
-                # Extract resolution for readability and debugging
-                resolution_width, resolution_height = movie.get_resolution()
-                # Check for mismatch
-                if resolution_width != record[2] or resolution_height != record[3]:
-                    print("Resolution mismatch")
-                    cur.execute("""
-                                UPDATE movies SET resolution_width = 720, resolution_height = 464 WHERE movie_name = '10 Things I Hate About You' AND release_year = 1999;
-                                """)
-                    # query = sql.SQL("UPDATE {field} SET resolution_width = %s, resolution_height = %s WHERE movie_name = %s AND release_year = %s").format(field = sql.Identifier(db_name))
+            if movie.get_name() == record[0] and movie.get_year() == str(record[1]):
+                movie_exists = True
+                # check for any changes in resolution or external subtitles for movie
+                update_movie_params(movie, record, cur, conn)
+        if not movie_exists:
+            add_movie(movie, cur, conn)
 
-                    # cur.execute(query, (int(movie.get_resolution()[0]), int(movie.get_resolution()[1]), movie_name, int(movie_year)))
+    cur.close()
+    conn.close()
 
 if __name__ == "__main__":
     print("hello")
