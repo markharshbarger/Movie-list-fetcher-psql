@@ -62,14 +62,23 @@ def sync():
     movie_manager.process_files()
     current_movies: list = movie_manager.get_movie_list()
 
+    if database_records.__len__() == 0:
+        print("No records found in the database")
+        for movie in current_movies:
+            add_movie(movie, cur, conn)
+        return
+
     for record in database_records:
         movie_exists = False
         for movie in current_movies:
+            print("here")
             if movie.get_name() == record[0] and movie.get_year() == str(record[1]):
+                print("Movie found")
                 movie_exists = True
                 # check for any changes in resolution or external subtitles for movie
                 update_movie_params(movie, record, cur, conn)
         if not movie_exists:
+            print("Movie not found")
             add_movie(movie, cur, conn)
 
     cur.close()
