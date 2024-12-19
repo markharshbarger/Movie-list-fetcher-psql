@@ -24,11 +24,13 @@ class Movie:
         return [self.name, self.resolution, "x" if self.external_subtitles else ""]
     
     def get_name(self):
+        if "[" in self.name:
+            return self.name.split("(")[1].replace(")", "").split("[")[1].replace("]", "")
         return self.name.split("(")[0].strip()
     
     def get_year(self):
         return self.name.split("(")[1].replace(")", "")
-    
+        
     def get_resolution(self):
         return self.resolution
 
