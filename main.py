@@ -61,6 +61,7 @@ def sync():
     movie_manager = MovieManager(movie_paths)
     movie_manager.process_files()
     current_movies: list = movie_manager.get_movie_list()
+    print(database_records.__len__())
     print(current_movies.__len__())
 
     if database_records.__len__() == 0:
