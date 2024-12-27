@@ -9,4 +9,5 @@ CREATE TABLE movies (
     resolution_width INT,
     resolution_height INT,
     external_subtitles BOOLEAN DEFAULT FALSE
+    file_size DOUBLE PRECISION,
 );
