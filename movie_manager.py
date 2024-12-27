@@ -1,38 +1,52 @@
 import os
+import re
 import ffmpeg
+
+def extract_year(movie_string):
+    # Regular expression to match the year, handling both formats
+    match = re.search(r'\((\D*(\d{4}))\)', movie_string)
+    if match:
+        return match.group(2)
+    return None
 
 class Movie:
     length_of_parameters = 3
 
-    def __init__(self, name, resolution, external_subtitles=False):
-        self.name = name
+    def __init__(self, name, resolution, file_size, external_subtitles=False):
+        if name.__contains__('['):
+            self.name = name.split('[')[0].strip()
+        else:
+            self.name = name
         self.resolution = resolution
+        self.file_size = file_size
         self.external_subtitles = external_subtitles
 
     def __str__(self):
-        return f"{self.name} {self.resolution} ({self.external_subtitles})"
+        return f"{self.name} {self.resolution} {self.file_size} ({self.external_subtitles})"
 
     def __repr__(self):
         return str(self)
     
     def __eq__(self, other):
         if isinstance(other, Movie):
-            return self.name == other.name and self.resolution == other.resolution and self.external_subtitles == other.external_subtitles
+            return self.name == other.name and self.resolution == other.resolution and self.external_subtitles == other.external_subtitles and self.file_size == other.file_size
         return False
     
     def list(self):
-        return [self.name, self.resolution, "x" if self.external_subtitles else ""]
+        return [self.name, self.resolution, self.size, "x" if self.external_subtitles else ""]
     
     def get_name(self):
-        if "[" in self.name:
-            return self.name.split("(")[1].replace(")", "").split("[")[1].replace("]", "")
         return self.name.split("(")[0].strip()
     
     def get_year(self):
-        return self.name.split("(")[1].replace(")", "")
+        print(extract_year(self.name))
+        return int(extract_year(self.name))
         
     def get_resolution(self):
         return self.resolution
+    
+    def get_file_size(self):
+        return self.file_size
 
 video_extensions = (".mp4", ".mkv", "webm", ".ts", ".ogg")
 subtitle_extensions = (".en", ".default", ".fr", ".de", ".german", ".srt")
@@ -46,11 +60,12 @@ class MovieManager:
     def get_movie_list(self):
         return self.movie_list
     
-    def get_video_resolution(self, file_path):
+    def get_video_data(self, file_path):
         probe = ffmpeg.probe(file_path)
         video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
-        # resoulution = f"{video_stream['width']}x{video_stream['height']}"
-        return video_stream['width'], video_stream['height']
+        size_bytes = os.path.getsize(file_path)
+        size_gb = size_bytes / (1024 ** 3)  # Convert size to gigabytes
+        return video_stream['width'], video_stream['height'], size_gb
     
     @staticmethod
     def remove_extensions(word, extensions):
@@ -65,9 +80,10 @@ class MovieManager:
                     dirs.remove('extras')  # Skip directories named 'extras'
                 for file in files:
                     if file.endswith(video_extensions):
-                        resolution = self.get_video_resolution(os.path.join(root, file))
+                        width, height, size_gb = self.get_video_data(os.path.join(root, file))
                         file = self.remove_extensions(file, video_extensions)
-                        self.movie_list.append(Movie(file, resolution))
+                        resolution = width, height
+                        self.movie_list.append(Movie(file, resolution, size_gb))
                     elif file.endswith(".srt"):
                         file = self.remove_extensions(file, subtitle_extensions)
                         self.subtitle_list.append(file)
